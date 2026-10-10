@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Application Tracker</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+<main class="page-shell">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">LOCAL WORKSPACE</p>
+            <h1>Job Application Tracker</h1>
+            <p class="storage-path">
+                <span>Thư mục lưu CV</span>
+                <code th:text="${cvDirectory}">~/Documents/JobApplicationTracker/cvs</code>
+                <button type="button" class="settings-button" onclick="document.getElementById('cv-settings').showModal()">
+                    Cấu hình
+                </button>
+            </p>
+        </div>
+        <div class="count" th:text="${applicationCount} + ' applications'">0 applications</div>
+    </header>
+
+    <div class="notice success" th:if="${success}" th:text="${success}"></div>
+    <div class="notice error" th:if="${error}" th:text="${error}"></div>
+
+    <section class="card form-card">
+        <h2>Thêm application</h2>
+        <form action="/applications" method="post" enctype="multipart/form-data" class="application-form">
+            <label class="field link-field">
+                <span>Link apply</span>
+                <input type="url" name="applyLink" placeholder="https://www.linkedin.com/jobs/..." required>
+            </label>
+            <label class="field">
+                <span>Kinh nghiệm</span>
+                <select name="yearsOfExperience" required>
+                    <option th:each="year : ${#numbers.sequence(0, 10)}" th:value="${year}"
+                            th:text="${year == 0 ? 'Dưới 1 năm' : year + ' năm'}"></option>
+                    <option value="20">Trên 10 năm</option>
+                </select>
+            </label>
+            <label class="field">
+                <span>Vị trí</span>
+                <select name="position" required>
+                    <option th:each="position : ${positions}" th:value="${position}" th:text="${position}"></option>
+                </select>
+            </label>
+            <label class="field cv-field">
+                <span>CV đã apply</span>
+                <input type="file" name="cv" accept=".pdf,.doc,.docx" required>
+            </label>
+            <button type="submit" class="primary-button">Lưu application</button>
+        </form>
+    </section>
+
+    <section class="card table-card">
+        <div class="table-heading">
+            <div>
+                <h2>Danh sách đã apply</h2>
+            </div>
+        </div>
+
+        <div class="empty-state" th:if="${applicationCount == 0}">
+            <span>✦</span>
+            <strong>Chưa có application nào</strong>
+            <p>Điền form phía trên để thêm application đầu tiên.</p>
+        </div>
+
+        <div class="table-wrap" th:unless="${applicationCount == 0}">
+            <table>
+                <thead>
+                <tr>
+                    <th>Ngày lưu</th>
+                    <th>Vị trí</th>
+                    <th>Kinh nghiệm</th>
+                    <th>Link apply</th>
+                    <th>CV</th>
+                    <th aria-label="Thao tác"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${applications}">
+                    <td class="muted" th:text="${#temporals.format(item.createdAt, 'dd/MM/yyyy')}"></td>
+                    <td><span class="position-badge" th:text="${item.position}"></span></td>
+                    <td th:text="${item.yearsOfExperience == 0 ? 'Dưới 1 năm' : (item.yearsOfExperience == 20 ? 'Trên 10 năm' : item.yearsOfExperience + ' năm')}"></td>
+                    <td>
+                        <a class="external-link" th:href="${item.applyLink}" target="_blank" rel="noopener noreferrer">
+                            Mở tin tuyển dụng <span>↗</span>
+                        </a>
+                    </td>
+                    <td>
+                        <a class="cv-link" th:href="@{/cv/{id}(id=${item.id})}" target="_blank" th:title="${item.cvOriginalName}">
+                            <span class="file-icon">PDF</span>
+                            <span th:text="${item.cvOriginalName}"></span>
+                        </a>
+                    </td>
+                    <td class="actions">
+                        <form th:action="@{/cv/{id}/reveal(id=${item.id})}" method="post">
+                            <button type="submit" class="icon-button" title="Hiện trong Finder" aria-label="Hiện CV trong Finder">⌕</button>
+                        </form>
+                        <form th:action="@{/applications/{id}/delete(id=${item.id})}" method="post"
+                              onsubmit="return confirm('Xoá application và file CV này?')">
+                            <button type="submit" class="icon-button danger" title="Xoá" aria-label="Xoá application">×</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<dialog id="cv-settings" class="settings-dialog">
+    <form action="/settings/cv-directory" method="post">
+        <div class="dialog-heading">
+            <div>
+                <p class="eyebrow">LOCAL STORAGE</p>
+                <h2>Cấu hình thư mục CV</h2>
+            </div>
+            <button type="button" class="dialog-close" aria-label="Đóng"
+                    onclick="document.getElementById('cv-settings').close()">×</button>
+        </div>
+        <label class="field dialog-field">
+            <span>Đường dẫn trên máy Mac</span>
+            <div class="path-picker">
+                <input id="cv-directory-input" type="text" name="cvDirectory" th:value="${cvDirectory}"
+                       placeholder="~/Documents/JobApplicationTracker/cvs" required>
+                <button id="choose-directory-button" type="button" class="secondary-button" onclick="chooseCvDirectory()">
+                    Chọn thư mục…
+                </button>
+            </div>
+        </label>
+        <p id="directory-picker-message" class="dialog-note">Khi lưu, các CV cũ sẽ được chuyển sang thư mục mới và dữ liệu sẽ được cập nhật.</p>
+        <div class="dialog-actions">
+            <button type="button" class="secondary-button"
+                    onclick="document.getElementById('cv-settings').close()">Huỷ</button>
+            <button type="submit" class="primary-button">Lưu cấu hình</button>
+        </div>
+    </form>
+</dialog>
+<script>
+    async function chooseCvDirectory() {
+        const button = document.getElementById('choose-directory-button');
+        const input = document.getElementById('cv-directory-input');
+        const message = document.getElementById('directory-picker-message');
+        button.disabled = true;
+        button.textContent = 'Đang mở Finder…';
+        message.classList.remove('picker-error');
+        try {
+            const response = await fetch('/settings/choose-cv-directory', { method: 'POST' });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'Không thể chọn thư mục.');
+            }
+            input.value = result.path;
+            message.textContent = 'Đã chọn thư mục. Nhấn “Lưu cấu hình” để chuyển các CV cũ.';
+        } catch (error) {
+            message.textContent = error.message;
+            message.classList.add('picker-error');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'Chọn thư mục…';
+        }
+    }
+</script>
+</body>
+</html>
