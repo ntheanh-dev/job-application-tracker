@@ -1,5 +1,6 @@
 package com.local.jobtracker.controller;
 
+import com.local.jobtracker.model.ApplicationStatus;
 import com.local.jobtracker.model.JobApplication;
 import com.local.jobtracker.service.ApplicationStore;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,12 +48,24 @@ public class HomeController {
     }
 
     @PostMapping("/applications")
-    public String add(@RequestParam String applyLink,
+    public String add(@RequestParam String companyName,
+                      @RequestParam String applyLink,
                       @RequestParam int yearsOfExperience,
                       @RequestParam String position,
                       @RequestParam MultipartFile cv,
                       RedirectAttributes redirect) {
         try {
+
+            if (companyName == null || companyName.isBlank()) {
+                throw new IllegalArgumentException("Vui lòng nhập tên công ty.");
+            }
+
+            if (companyName.trim().length() > 150) {
+                throw new IllegalArgumentException("Tên công ty không được vượt quá 150 ký tự.");
+            }
+
+
+
             URI uri = URI.create(applyLink.trim());
             if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))) {
                 throw new IllegalArgumentException("Link apply phải bắt đầu bằng http:// hoặc https://.");
@@ -63,7 +76,7 @@ public class HomeController {
             if (!POSITIONS.contains(position)) {
                 throw new IllegalArgumentException("Vị trí không hợp lệ.");
             }
-            store.add(applyLink, yearsOfExperience, position, cv);
+            store.add(companyName.trim(), applyLink, yearsOfExperience, position, cv);
             redirect.addFlashAttribute("success", "Đã lưu application và CV.");
         } catch (Exception error) {
             redirect.addFlashAttribute("error", error.getMessage() == null ? "Không thể lưu application." : error.getMessage());
@@ -147,6 +160,28 @@ public class HomeController {
         } catch (Exception error) {
             redirect.addFlashAttribute("error", error.getMessage());
         }
+        return "redirect:/";
+    }
+
+    @PostMapping("/applications/{id}/status")
+    public String updateStatus(
+            @PathVariable String id,
+            @RequestParam ApplicationStatus status,
+            RedirectAttributes redirect
+    ) {
+        try {
+            store.updateStatus(id, status);
+            redirect.addFlashAttribute(
+                    "success",
+                    "Đã cập nhật trạng thái ứng tuyển."
+            );
+        } catch (Exception e) {
+            redirect.addFlashAttribute(
+                    "error",
+                    e.getMessage()
+            );
+        }
+
         return "redirect:/";
     }
 }

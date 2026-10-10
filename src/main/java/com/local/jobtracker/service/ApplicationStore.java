@@ -2,6 +2,7 @@ package com.local.jobtracker.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.local.jobtracker.model.ApplicationStatus;
 import com.local.jobtracker.model.JobApplication;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -70,7 +71,7 @@ public class ApplicationStore {
         return applications.stream().filter(item -> item.id().equals(id)).findFirst();
     }
 
-    public synchronized JobApplication add(String applyLink, int yearsOfExperience, String position,
+    public synchronized JobApplication add(String companyName, String applyLink, int yearsOfExperience, String position,
                                            MultipartFile cv) throws IOException {
         validateCv(cv);
         String id = UUID.randomUUID().toString();
@@ -87,8 +88,8 @@ public class ApplicationStore {
         }
 
         JobApplication application = new JobApplication(
-                id, applyLink.trim(), yearsOfExperience, position, originalName, storedName,
-                currentCvDirectory.toString(), LocalDateTime.now());
+                id,companyName, applyLink.trim(), yearsOfExperience, position, originalName, storedName,
+                currentCvDirectory.toString(), LocalDateTime.now(), ApplicationStatus.APPLIED);
         applications.add(application);
         try {
             persist();
@@ -116,6 +117,41 @@ public class ApplicationStore {
             throw new IllegalArgumentException("Đường dẫn CV không hợp lệ.");
         }
         return path;
+    }
+
+    public synchronized void updateStatus(
+            String id,
+            ApplicationStatus status
+    ) throws IOException {
+        if (status == null) {
+            throw new IllegalArgumentException("Trạng thái không hợp lệ.");
+        }
+
+        JobApplication oldItem = findById(id)
+                .orElseThrow(() -> new IOException("Không tìm thấy application."));
+
+        JobApplication updatedItem = new JobApplication(
+                oldItem.id(),
+                oldItem.companyName(),
+                oldItem.applyLink(),
+                oldItem.yearsOfExperience(),
+                oldItem.position(),
+                oldItem.cvOriginalName(),
+                oldItem.cvStoredName(),
+                oldItem.cvDirectory(),
+                oldItem.createdAt(),
+                status
+        );
+
+        int index = applications.indexOf(oldItem);
+        applications.set(index, updatedItem);
+
+        try {
+            persist();
+        } catch (IOException e) {
+            applications.set(index, oldItem);
+            throw e;
+        }
     }
 
     public synchronized Path cvDirectory() {
@@ -224,8 +260,8 @@ public class ApplicationStore {
     }
 
     private JobApplication withCvDirectory(JobApplication item, Path directory) {
-        return new JobApplication(item.id(), item.applyLink(), item.yearsOfExperience(), item.position(),
-                item.cvOriginalName(), item.cvStoredName(), directory.toString(), item.createdAt());
+        return new JobApplication(item.id(), item.companyName(), item.applyLink(), item.yearsOfExperience(), item.position(),
+                item.cvOriginalName(), item.cvStoredName(), directory.toString(), item.createdAt(), item.status());
     }
 
     private void moveFile(Path source, Path target) throws IOException {

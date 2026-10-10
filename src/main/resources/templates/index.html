@@ -29,6 +29,16 @@
     <section class="card form-card">
         <h2>Thêm application</h2>
         <form action="/applications" method="post" enctype="multipart/form-data" class="application-form">
+            <label class="field company-field">
+                <span>Tên công ty</span>
+                <input
+                        type="text"
+                        name="companyName"
+                        placeholder="VD: FPT Software, Viettel, CMC..."
+                        maxlength="150"
+                        required
+                >
+            </label>
             <label class="field link-field">
                 <span>Link apply</span>
                 <input type="url" name="applyLink" placeholder="https://www.linkedin.com/jobs/..." required>
@@ -73,16 +83,22 @@
                 <thead>
                 <tr>
                     <th>Ngày lưu</th>
+                    <th>Công ty</th>
                     <th>Vị trí</th>
                     <th>Kinh nghiệm</th>
                     <th>Link apply</th>
                     <th>CV</th>
+                    <th>Trạng thái</th>
                     <th aria-label="Thao tác"></th>
                 </tr>
                 </thead>
                 <tbody>
                 <tr th:each="item : ${applications}">
                     <td class="muted" th:text="${#temporals.format(item.createdAt, 'dd/MM/yyyy')}"></td>
+                    <td th:text="${item.companyName != null && !item.companyName.isBlank()
+        ? item.companyName : '—'}">
+                        Tên công ty
+                    </td>
                     <td><span class="position-badge" th:text="${item.position}"></span></td>
                     <td th:text="${item.yearsOfExperience == 0 ? 'Dưới 1 năm' : (item.yearsOfExperience == 20 ? 'Trên 10 năm' : item.yearsOfExperience + ' năm')}"></td>
                     <td>
@@ -93,8 +109,43 @@
                     <td>
                         <a class="cv-link" th:href="@{/cv/{id}(id=${item.id})}" target="_blank" th:title="${item.cvOriginalName}">
                             <span class="file-icon">PDF</span>
-                            <span th:text="${item.cvOriginalName}"></span>
                         </a>
+                    </td>
+                    <td>
+                        <form th:action="@{/applications/{id}/status(id=${item.id})}"
+                              method="post">
+
+                            <select name="status"
+                                    class="status-select"
+                                    th:classappend="' status-' + ${item.status == null ? 'APPLIED' : item.status}"
+                                    onchange="this.form.submit()">
+
+                                <option value="APPLIED"
+                                        th:selected="${item.status == null or item.status.name() == 'APPLIED'}">
+                                    Applied
+                                </option>
+
+                                <option value="HR_CONTACTED"
+                                        th:selected="${item.status != null and item.status.name() == 'HR_CONTACTED'}">
+                                    HR gọi điện
+                                </option>
+
+                                <option value="INTERVIEW"
+                                        th:selected="${item.status != null and item.status.name() == 'INTERVIEW'}">
+                                    Phỏng vấn
+                                </option>
+
+                                <option value="PASSED"
+                                        th:selected="${item.status != null and item.status.name() == 'PASSED'}">
+                                    Pass
+                                </option>
+
+                                <option value="FAILED"
+                                        th:selected="${item.status != null and item.status.name() == 'FAILED'}">
+                                    Failed
+                                </option>
+                            </select>
+                        </form>
                     </td>
                     <td class="actions">
                         <form th:action="@{/cv/{id}/reveal(id=${item.id})}" method="post">
